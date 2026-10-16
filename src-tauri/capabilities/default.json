@@ -1,0 +1,29 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "identifier": "default",
+  "description": "Default capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-ask",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-read-file",
+    "fs:allow-exists",
+    {
+      "identifier": "fs:scope",
+      "allow": ["**"]
+    },
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "https://jx3hdv4ks-autoupdate.xoyocdn.com/jx3hd_v4/zhcn_hd/autoupdateentry.txt" },
+        { "url": "https://jx3hdv4qq-autoupdate.xoyocdn.com/jx3hd_v4/zhcn_hd/autoupdateentry.txt" },
+        { "url": "https://jx3hdv4hsyq-autoupdate.xoyocdn.com/jx3hd_v4/zhcn_hd/autoupdateentry.txt" }
+      ]
+    }
+  ]
+}
