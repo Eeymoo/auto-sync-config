@@ -54,6 +54,17 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply select-none bg-background text-foreground;
+  }
+  /* 禁止浏览器内拖拽图片导致窗口拖拽 */
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    @apply select-text;
   }
 }
+

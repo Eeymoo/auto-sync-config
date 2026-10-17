@@ -14,8 +14,10 @@
       {
         "label": "main",
         "title": "Auto Sync Config",
-        "width": 900,
-        "height": 600
+        "width": 960,
+        "height": 640,
+        "resizable": false,
+        "zoomHotkeysEnabled": false
       }
     ],
     "security": {

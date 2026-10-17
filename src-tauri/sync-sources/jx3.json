@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "id": "jx3",
+  "name": "剑网 3",
+  "version": "1.0.0",
+  "hook": "jx3-v1",
+  "rootMarkers": [
+    "userdata/config.dat",
+    "interface"
+  ],
+  "variants": {
+    "official": {
+      "label": "正式服",
+      "dataRoots": ["bin/zhcn_hd", "."],
+      "variables": {
+        "locale": "zhcn_hd"
+      }
+    },
+    "experimental": {
+      "label": "测试服",
+      "dataRoots": ["bin/zhcn_exp", "."],
+      "variables": {
+        "locale": "zhcn_exp"
+      }
+    }
+  },
+  "roleCatalog": {
+    "base": "userdata",
+    "levels": ["account", "area", "server", "role"],
+    "ignore": ["fight_stat"]
+  },
+  "roleId": {
+    "hook": "jx3-role-id-v1",
+    "searchRoots": ["interface/MY#DATA", "interface/my#data"],
+    "infoFile": "info.jx3dat"
+  },
+  "roleMetadata": {
+    "hook": "jx3-my-role-metadata-v1",
+    "fightStatDirectory": "userdata/fight_stat",
+    "logDirectory": "logs",
+    "forceMap": {
+      "1": "shaolin",
+      "2": "wanhua",
+      "3": "tiance",
+      "4": "chunyang",
+      "5": "qixiu",
+      "6": "wudu",
+      "7": "tangmen",
+      "8": "cangjian",
+      "9": "gaibang",
+      "10": "mingjiao",
+      "21": "cangyun",
+      "22": "changhai",
+      "23": "badao",
+      "24": "penglai",
+      "25": "lingxue",
+      "211": "yantian",
+      "212": "beiyao",
+      "213": "daozong",
+      "214": "wanshou",
+      "215": "duanshi"
+    },
+    "mountMap": {
+      "1": "tiance",
+      "2": "wanhua",
+      "3": "chunyang",
+      "4": "qixiu",
+      "5": "shaolin",
+      "6": "cangjian",
+      "7": "gaibang",
+      "8": "mingjiao",
+      "9": "wudu",
+      "10": "tangmen",
+      "18": "cangyun",
+      "19": "changhai",
+      "20": "badao",
+      "21": "penglai",
+      "22": "lingxue",
+      "23": "yantian",
+      "24": "beiyao",
+      "26": "daozong",
+      "29": "wanshou",
+      "38": "duanshi",
+      "39": "wuxiang"
+    }
+  },
+  "groups": [
+    {
+      "id": "userdata",
+      "name": "键位与 UI 设置",
+      "description": "角色界面、键位、插件开关及相关基础配置。",
+      "defaultEnabled": true,
+      "files": [
+        { "id": "addon", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/addon.jx3dat"], "target": "userdata/{account}/{area}/{server}/{role}/addon.jx3dat", "optional": true },
+        { "id": "outfit", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/CoinShopOutfitData.jx3dat"], "target": "userdata/{account}/{area}/{server}/{role}/CoinShopOutfitData.jx3dat", "optional": true },
+        { "id": "custom", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/custom.dat"], "target": "userdata/{account}/{area}/{server}/{role}/custom.dat", "optional": true },
+        { "id": "custom-addon", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/custom.dat.addon"], "target": "userdata/{account}/{area}/{server}/{role}/custom.dat.addon", "optional": true },
+        { "id": "preferences", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/userpreferences.jx3dat"], "target": "userdata/{account}/{area}/{server}/{role}/userpreferences.jx3dat", "optional": true },
+        { "id": "preferences-async", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/userpreferencesasync.jx3dat"], "target": "userdata/{account}/{area}/{server}/{role}/userpreferencesasync.jx3dat", "optional": true },
+        { "id": "hotkey", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/hotkey.data"], "target": "userdata/{account}/{area}/{server}/{role}/hotkey.data", "optional": true },
+        { "id": "hotkey-last", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/hotkey_last.txt"], "target": "userdata/{account}/{area}/{server}/{role}/hotkey_last.txt", "optional": true },
+        { "id": "hotkey-back0", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/hotkey_back0.txt"], "target": "userdata/{account}/{area}/{server}/{role}/hotkey_back0.txt", "optional": true },
+        { "id": "hotkey-back1", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/hotkey_back1.txt"], "target": "userdata/{account}/{area}/{server}/{role}/hotkey_back1.txt", "optional": true },
+        { "id": "hotkey-back2", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/hotkey_back2.txt"], "target": "userdata/{account}/{area}/{server}/{role}/hotkey_back2.txt", "optional": true },
+        { "id": "hotkey-back3", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/hotkey_back3.txt"], "target": "userdata/{account}/{area}/{server}/{role}/hotkey_back3.txt", "optional": true },
+        { "id": "hotkey-back4", "sourceCandidates": ["userdata/{account}/{area}/{server}/{role}/hotkey_back4.txt"], "target": "userdata/{account}/{area}/{server}/{role}/hotkey_back4.txt", "optional": true }
+      ]
+    },
+    {
+      "id": "disable-server-sync",
+      "name": "关闭游戏服务器同步",
+      "description": "使用固定配置关闭游戏自身的界面、键位等服务器同步。此规则覆盖 userdata 中的原文件。",
+      "defaultEnabled": true,
+      "files": [
+        {
+          "id": "preferences-async-disabled",
+          "target": "userdata/{account}/{area}/{server}/{role}/userpreferencesasync.jx3dat",
+          "inlineBase64": "Q05ES+gZ7/iWAAAAlgAAAHJldHVybiB7UXVlc3RUcmFjZT10cnVlLEFjdGlvbkJhcj10cnVlLFNraWxsR3VpZGU9dHJ1ZSxWaWRlb1NldHRpbmc9dHJ1ZSxIZWFkVG9wPXRydWUsQ2hhdFBhbmVsPXRydWUsVUlTZXRpbmc9dHJ1ZSxIb3RrZXk9dHJ1ZSxPbmxpbmVGcmFtZUFuY2hvcj10cnVlfQ=="
+        }
+      ]
+    },
+    {
+      "id": "jx-role",
+      "name": "剑心角色设置",
+      "description": "技能、过图和击杀等角色喊话设置。",
+      "defaultEnabled": true,
+      "files": [
+        { "id": "killnotice", "sourceCandidates": ["interface/JX#DATA/killnotice/{roleId}.jx3dat"], "target": "interface/JX#DATA/killnotice/{roleId}.jx3dat", "optional": true },
+        { "id": "othernotice", "sourceCandidates": ["interface/JX#DATA/othernotice/{roleId}.jx3dat"], "target": "interface/JX#DATA/othernotice/{roleId}.jx3dat", "optional": true },
+        { "id": "skillnotice", "sourceCandidates": ["interface/JX#DATA/skillnotice/{roleId}.jx3dat"], "target": "interface/JX#DATA/skillnotice/{roleId}.jx3dat", "optional": true }
+      ]
+    },
+    {
+      "id": "my-role",
+      "name": "茗伊角色设置",
+      "description": "茗伊角色配置、便签及目标监控。",
+      "defaultEnabled": true,
+      "files": [
+        { "id": "anmerkungen", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/anmerkungen.jx3dat", "interface/my#data/{roleId}@{locale}/config/anmerkungen.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/config/anmerkungen.jx3dat", "optional": true },
+        { "id": "focus", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/focus.jx3dat", "interface/my#data/{roleId}@{locale}/config/focus.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/config/focus.jx3dat", "optional": true },
+        { "id": "infotip", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/infotip.jx3dat", "interface/my#data/{roleId}@{locale}/config/infotip.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/config/infotip.jx3dat", "optional": true },
+        { "id": "memo", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/memo.jx3dat", "interface/my#data/{roleId}@{locale}/config/memo.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/config/memo.jx3dat", "optional": true },
+        { "id": "my-targetmon", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/my_targetmon.jx3dat", "interface/my#data/{roleId}@{locale}/config/my_targetmon.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/config/my_targetmon.jx3dat", "optional": true },
+        { "id": "settings-db", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/settings.db", "interface/my#data/{roleId}@{locale}/config/settings.db"], "target": "interface/MY#DATA/{roleId}@{locale}/config/settings.db", "optional": true },
+        { "id": "settings-udb", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/settings.udb", "interface/my#data/{roleId}@{locale}/config/settings.udb"], "target": "interface/MY#DATA/{roleId}@{locale}/config/settings.udb", "optional": true },
+        { "id": "userdata-db", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/userdata.db", "interface/my#data/{roleId}@{locale}/config/userdata.db"], "target": "interface/MY#DATA/{roleId}@{locale}/config/userdata.db", "optional": true },
+        { "id": "userdata-udb", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/userdata.udb", "interface/my#data/{roleId}@{locale}/config/userdata.udb"], "target": "interface/MY#DATA/{roleId}@{locale}/config/userdata.udb", "optional": true },
+        { "id": "storage-version", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/storageversion.jx3dat", "interface/my#data/{roleId}@{locale}/config/storageversion.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/config/storageversion.jx3dat", "optional": true },
+        { "id": "tutorialed", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/config/tutorialed.jx3dat", "interface/my#data/{roleId}@{locale}/config/tutorialed.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/config/tutorialed.jx3dat", "optional": true },
+        { "id": "manifest", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/manifest.jx3dat", "interface/my#data/{roleId}@{locale}/manifest.jx3dat"], "target": "interface/MY#DATA/{roleId}@{locale}/manifest.jx3dat", "optional": true },
+        { "id": "target-mon", "mode": "directory", "sourceCandidates": ["interface/MY#DATA/{roleId}@{locale}/userdata/target_mon", "interface/my#data/{roleId}@{locale}/userdata/target_mon", "interface/MY#DATA/{roleId}@{locale}/userdata/TargetMon", "interface/my#data/{roleId}@{locale}/userdata/TargetMon"], "target": "interface/MY#DATA/{roleId}@{locale}/userdata/target_mon", "optional": true }
+      ]
+    },
+    {
+      "id": "jx-global",
+      "name": "剑心全局设置",
+      "description": "剑心插件集的本机公共配置。",
+      "defaultEnabled": false,
+      "files": [
+        { "id": "hide-action", "sourceCandidates": ["interface/JX#DATA/hiderepresent/HideActionData.jx3dat"], "target": "interface/JX#DATA/hiderepresent/HideActionData.jx3dat", "optional": true },
+        { "id": "cast-mode", "sourceCandidates": ["interface/JX#DATA/skillcastmode/CastModeData.jx3dat"], "target": "interface/JX#DATA/skillcastmode/CastModeData.jx3dat", "optional": true },
+        { "id": "custom-mod", "sourceCandidates": ["interface/JX#DATA/targetlist/CustomMod.jx3dat"], "target": "interface/JX#DATA/targetlist/CustomMod.jx3dat", "optional": true },
+        { "id": "focus-target", "sourceCandidates": ["interface/JX#DATA/targetlist/FocusTarget.jx3dat"], "target": "interface/JX#DATA/targetlist/FocusTarget.jx3dat", "optional": true },
+        { "id": "custom-data", "sourceCandidates": ["interface/JX#DATA/CustomData.jx3dat"], "target": "interface/JX#DATA/CustomData.jx3dat", "optional": true }
+      ]
+    },
+    {
+      "id": "my-global",
+      "name": "茗伊全局设置",
+      "description": "茗伊插件集的本机公共配置。",
+      "defaultEnabled": false,
+      "files": [
+        { "id": "settings-db", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/settings.db", "interface/my#data/!all-users@{locale}/config/settings.db"], "target": "interface/MY#DATA/!all-users@{locale}/config/settings.db", "optional": true },
+        { "id": "settings-udb", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/settings.udb", "interface/my#data/!all-users@{locale}/config/settings.udb"], "target": "interface/MY#DATA/!all-users@{locale}/config/settings.udb", "optional": true },
+        { "id": "userdata-db", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/userdata.db", "interface/my#data/!all-users@{locale}/config/userdata.db"], "target": "interface/MY#DATA/!all-users@{locale}/config/userdata.db", "optional": true },
+        { "id": "userdata-udb", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/userdata.udb", "interface/my#data/!all-users@{locale}/config/userdata.udb"], "target": "interface/MY#DATA/!all-users@{locale}/config/userdata.udb", "optional": true },
+        { "id": "yy", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/yy.jx3dat", "interface/my#data/!all-users@{locale}/config/yy.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/yy.jx3dat", "optional": true },
+        { "id": "show-notify", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/show_notify.jx3dat", "interface/my#data/!all-users@{locale}/config/show_notify.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/show_notify.jx3dat", "optional": true },
+        { "id": "serendipity", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/serendipity_autoshare.jx3dat", "interface/my#data/!all-users@{locale}/config/serendipity_autoshare.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/serendipity_autoshare.jx3dat", "optional": true },
+        { "id": "screenshot", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/screenshot.jx3dat", "interface/my#data/!all-users@{locale}/config/screenshot.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/screenshot.jx3dat", "optional": true },
+        { "id": "my-targetmon", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/my_targetmon.jx3dat", "interface/my#data/!all-users@{locale}/config/my_targetmon.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/my_targetmon.jx3dat", "optional": true },
+        { "id": "memo", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/memo.jx3dat", "interface/my#data/!all-users@{locale}/config/memo.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/memo.jx3dat", "optional": true },
+        { "id": "font", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/fontconfig.jx3dat", "interface/my#data/!all-users@{locale}/config/fontconfig.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/fontconfig.jx3dat", "optional": true },
+        { "id": "chat-monitor", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/chatmonitor.jx3dat", "interface/my#data/!all-users@{locale}/config/chatmonitor.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/chatmonitor.jx3dat", "optional": true },
+        { "id": "chat-block", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/chatblockwords.jx3dat", "interface/my#data/!all-users@{locale}/config/chatblockwords.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/chatblockwords.jx3dat", "optional": true },
+        { "id": "cataclysm", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/cataclysm/common.jx3dat", "interface/my#data/!all-users@{locale}/config/cataclysm/common.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/cataclysm/common.jx3dat", "optional": true },
+        { "id": "focus", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/focus/common.jx3dat", "interface/my#data/!all-users@{locale}/config/focus/common.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/focus/common.jx3dat", "optional": true },
+        { "id": "life-bar", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/config/xlifebar/common.jx3dat", "interface/my#data/!all-users@{locale}/config/xlifebar/common.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/config/xlifebar/common.jx3dat", "optional": true },
+        { "id": "manifest", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/manifest.jx3dat", "interface/my#data/!all-users@{locale}/manifest.jx3dat"], "target": "interface/MY#DATA/!all-users@{locale}/manifest.jx3dat", "optional": true },
+        { "id": "target-mon", "mode": "directory", "sourceCandidates": ["interface/MY#DATA/!all-users@{locale}/userdata/target_mon", "interface/my#data/!all-users@{locale}/userdata/target_mon", "interface/MY#DATA/!all-users@{locale}/userdata/TargetMon", "interface/my#data/!all-users@{locale}/userdata/TargetMon"], "target": "interface/MY#DATA/!all-users@{locale}/userdata/target_mon", "optional": true }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { writeFile, exists } from "@tauri-apps/plugin-fs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +12,23 @@ import {
   listAccounts,
   deleteAccount,
   getVaultStatus,
+  getVaultPathSetting,
   getDefaultVaultPath,
   enableHello,
   disableHello,
   unlockWithHello,
+  scanUserdataAccounts,
   type AccountSummary,
   type VaultStatus,
+  type ScannedAccount,
 } from "@/lib/vault";
 import { AccountEditor } from "./AccountEditor";
+import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+import { SyncConfirmDialog } from "./SyncConfirmDialog";
+import {
+  CreateVaultConfirmDialog,
+  StrengthMeter,
+} from "./CreateVaultConfirmDialog";
 import { SectIcon } from "@/lib/sects";
 import {
   ArrowLeft,
@@ -27,6 +37,7 @@ import {
   LockOpen,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
   Copy,
@@ -39,10 +50,11 @@ import { getAccountCredentials } from "@/lib/vault";
 
 interface AccountsPageProps {
   onBack: () => void;
+  gamePath: string;
 }
 
 /** 账号管理页:密码库解锁 + jx3 分组账号列表。 */
-export function AccountsPage({ onBack }: AccountsPageProps) {
+export function AccountsPage({ onBack, gamePath }: AccountsPageProps) {
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +62,10 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
   const [editing, setEditing] = useState<AccountSummary | "new" | null>(null);
   const [showPasswordId, setShowPasswordId] = useState<string | null>(null);
   const [passwordCache, setPasswordCache] = useState<Record<string, string>>({});
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<ScannedAccount[] | null>(null);
+  const [deleting, setDeleting] = useState<AccountSummary | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const refreshAccounts = useCallback(async () => {
     try {
@@ -62,6 +78,13 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
   const refreshStatus = useCallback(async () => {
     try {
       const s = await getVaultStatus();
+      // The backend auto-locks after idle; reflect that so cached passwords
+      // and the unlocked UI do not linger past the timeout.
+      if (!s.unlocked && status?.unlocked) {
+        setShowPasswordId(null);
+        setPasswordCache({});
+        setEditing(null);
+      }
       setStatus(s);
       if (s.unlocked) {
         await refreshAccounts();
@@ -71,7 +94,7 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
     } catch (e) {
       setError(String(e));
     }
-  }, [refreshAccounts]);
+  }, [refreshAccounts, status?.unlocked]);
 
   useEffect(() => {
     void refreshStatus();
@@ -97,6 +120,10 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
       setShowPasswordId(null);
       return;
     }
+    if (!status?.unlocked) {
+      setError("密码库已锁定，请重新解锁");
+      return;
+    }
     if (!passwordCache[id]) {
       try {
         const [, password] = await getAccountCredentials(id);
@@ -111,6 +138,10 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
 
   const copyPassword = async (id: string) => {
     try {
+      if (!status?.unlocked) {
+        setError("密码库已锁定，请重新解锁");
+        return;
+      }
       const [, password] = passwordCache[id]
         ? [null, passwordCache[id]]
         : await getAccountCredentials(id);
@@ -120,13 +151,17 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
     }
   };
 
-  const handleDelete = async (account: AccountSummary) => {
-    if (!window.confirm(`删除账号「${account.title}」?条目会移入回收站。`)) return;
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeleteBusy(true);
     try {
-      await deleteAccount(account.id);
+      await deleteAccount(deleting.id);
+      setDeleting(null);
       await refreshAccounts();
     } catch (e) {
       setError(String(e));
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -135,6 +170,27 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
     setShowPasswordId(null);
     setPasswordCache({});
     await refreshStatus();
+  };
+
+  const handleSync = async () => {
+    if (!gamePath) {
+      setError("请先在设置中配置游戏路径");
+      return;
+    }
+    setSyncing(true);
+    setError(null);
+    try {
+      const result = await scanUserdataAccounts(gamePath);
+      if (result.length === 0) {
+        setError("userdata 目录中没有找到账号");
+        return;
+      }
+      setSyncResult(result);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -185,6 +241,15 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
+              <Button
+                variant="outline"
+                disabled={syncing}
+                onClick={handleSync}
+                title="扫描 userdata 目录导入账号"
+              >
+                <RefreshCw className={`mr-1 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                同步
+              </Button>
               <Button onClick={() => setEditing("new")}>
                 <Plus className="mr-1 h-4 w-4" />
                 添加账号
@@ -208,7 +273,7 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
                     onTogglePassword={() => toggleShowPassword(account.id)}
                     onCopyPassword={() => copyPassword(account.id)}
                     onEdit={() => setEditing(account)}
-                    onDelete={() => handleDelete(account)}
+                    onDelete={() => setDeleting(account)}
                   />
                 ))}
               </div>
@@ -223,15 +288,67 @@ export function AccountsPage({ onBack }: AccountsPageProps) {
           onClose={() => setEditing(null)}
           onSaved={async () => {
             setEditing(null);
-            await refreshAccounts();
+            await refreshStatus();
           }}
+        />
+      )}
+
+      {syncResult && status?.unlocked && (
+        <SyncConfirmDialog
+          scanned={syncResult}
+          onClose={() => setSyncResult(null)}
+          onImported={async (count) => {
+            setSyncResult(null);
+            await refreshAccounts();
+            if (count > 0) {
+              setError(null);
+            }
+          }}
+        />
+      )}
+
+      {deleting && (
+        <DeleteConfirmDialog
+          account={deleting}
+          busy={deleteBusy}
+          onCancel={() => setDeleting(null)}
+          onConfirm={confirmDelete}
         />
       )}
     </div>
   );
 }
 
-/** 解锁面板:新建密码库 / 打开现有库 / Windows Hello 解锁。 */
+/** 解锁面板:新建密码库 / 打开现有库 / Windows Hello 解锁。
+ * 密码库路径来自设置页;未设置时新建库保存到应用数据目录。 */
+/** Best-effort check whether a vault file already exists at the default path. */
+async function defaultVaultExists(): Promise<boolean> {
+  try {
+    const p = await getDefaultVaultPath();
+    return await exists(p);
+  } catch {
+    return false;
+  }
+}
+
+/** Ask where to save the generated key file and write it. Returns false if
+ * the user cancels or the write fails. */
+async function saveKeyFile(base64: string): Promise<boolean> {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const chosen = await save({
+    title: "保存密钥文件",
+    defaultPath: "jx3-accounts.keyfile",
+    filters: [{ name: "密钥文件", extensions: ["keyfile", "key"] }],
+  });
+  if (typeof chosen !== "string" || !chosen) return false;
+  try {
+    await writeFile(chosen, bytes);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function UnlockPanel({
   onUnlocked,
   status,
@@ -239,56 +356,84 @@ function UnlockPanel({
   onUnlocked: () => Promise<void>;
   status: VaultStatus | null;
 }) {
-  const [mode, setMode] = useState<"open" | "create">("open");
-  const [path, setPath] = useState("");
+  const [path] = useState(() => getVaultPathSetting());
+  // Default to opening when a vault already exists at the configured (or
+  // default) path, so a returning user is not forced through "create" again.
+  const [mode, setMode] = useState<"open" | "create">(() => {
+    const configured = getVaultPathSetting();
+    if (configured) return "open";
+    return "create";
+  });
+  useEffect(() => {
+    if (!getVaultPathSetting()) {
+      void defaultVaultExists().then((existsNow) => {
+        if (existsNow) setMode("open");
+      });
+    }
+  }, []);
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [keyFile, setKeyFile] = useState<string | null>(null);
   const [useKeyFile, setUseKeyFile] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const p = await getDefaultVaultPath();
-        if (mode === "create") setPath(p);
-      } catch {
-        /* 仅用于显示默认路径 */
-      }
-    })();
-  }, [mode]);
-
-  const pickVaultFile = async () => {
-    const selected = await open({
-      title: "选择密码库",
-      filters: [{ name: "KeePass 数据库", extensions: ["kdbx"] }],
-    });
-    if (typeof selected === "string") setPath(selected);
-  };
+  const [confirmingCreate, setConfirmingCreate] = useState(false);
 
   const pickKeyFile = async () => {
     const selected = await open({ title: "选择密钥文件" });
     if (typeof selected === "string") setKeyFile(selected);
   };
 
-  const submit = async () => {
+  /** 点主按钮:open 直接解锁;create 先校验并弹确认,确认后才真正创建。 */
+  const submit = () => {
+    setError(null);
+    if (mode === "create") {
+      if (!password) {
+        setError("请输入主密码");
+        return;
+      }
+      if (password !== password2) {
+        setError("两次输入的主密码不一致");
+        return;
+      }
+      setConfirmingCreate(true);
+      return;
+    }
+    void doOpen();
+  };
+
+  const doOpen = async () => {
     setBusy(true);
     setError(null);
     try {
-      if (mode === "create") {
-        if (password !== password2) {
-          setError("两次输入的主密码不一致");
-          return;
-        }
-        await createVault(path || null, password, useKeyFile);
-      } else {
-        if (!path) {
-          setError("请选择密码库文件");
-          return;
-        }
-        await openVault(path, password, keyFile);
+      if (!path) {
+        setError("请先在「设置 → 常规」中配置密码库文件");
+        return;
       }
+      await openVault(path, password, keyFile);
+      await onUnlocked();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doCreate = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const [, keyFileBase64] = await createVault(path || null, password, useKeyFile);
+      // The generated key file is required to reopen the vault; offer to save
+      // it before proceeding. Declining keeps the vault open now but it cannot
+      // be unlocked again without the key file.
+      if (keyFileBase64) {
+        const saved = await saveKeyFile(keyFileBase64);
+        if (!saved) {
+          setError("未保存密钥文件：本次可继续使用，但重新解锁时需要它");
+        }
+      }
+      setConfirmingCreate(false);
       await onUnlocked();
     } catch (e) {
       setError(String(e));
@@ -329,37 +474,13 @@ function UnlockPanel({
         </Button>
       )}
 
-      <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1 text-sm">
-        <button
-          className={`rounded px-3 py-1.5 ${mode === "open" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-          onClick={() => setMode("open")}
-        >
-          打开现有库
-        </button>
-        <button
-          className={`rounded px-3 py-1.5 ${mode === "create" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-          onClick={() => setMode("create")}
-        >
-          新建密码库
-        </button>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        {mode === "create"
+          ? "首次使用,设置主密码创建密码库。保存位置可在「设置 → 常规 → 密码库」中修改。"
+          : "输入主密码解锁密码库。"}
+      </p>
 
       <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label>密码库文件</Label>
-          <div className="flex gap-2">
-            <Input
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              placeholder={mode === "create" ? "默认保存在应用数据目录" : "选择 .kdbx 文件"}
-              className="font-mono text-xs"
-            />
-            <Button variant="outline" size="sm" onClick={pickVaultFile}>
-              <FolderOpen className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
         <div className="space-y-1.5">
           <Label>主密码</Label>
           <Input
@@ -367,6 +488,7 @@ function UnlockPanel({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {mode === "create" && <StrengthMeter password={password} />}
         </div>
 
         {mode === "create" && (
@@ -420,6 +542,15 @@ function UnlockPanel({
         密码库使用 KDBX 4.0 格式,与 KeePass 兼容。闲置 5 分钟自动锁定。
         Windows Hello 解锁仅在本机可用,主密码始终是恢复方式。
       </p>
+
+      {confirmingCreate && (
+        <CreateVaultConfirmDialog
+          password={password}
+          busy={busy}
+          onCancel={() => setConfirmingCreate(false)}
+          onConfirm={doCreate}
+        />
+      )}
     </div>
   );
 }

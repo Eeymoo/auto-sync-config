@@ -17,6 +17,11 @@ const acknowledgements = [
     homepage: "https://www.jx3box.com/tool/106704",
   },
   {
+    name: "JX3BOX 社区 #5652",
+    description: "剑网3魔盒社区帖子，首页背景图源",
+    homepage: "https://www.jx3box.com/community/5652",
+  },
+  {
     name: "JX3SyncAssistant",
     description: "剑网3角色间界面同步工具",
     homepage: "https://github.com/X3ZvaWQ/JX3SyncAssistant",

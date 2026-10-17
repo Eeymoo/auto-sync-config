@@ -1,5 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 
+const VAULT_PATH_KEY = "auto-sync-config.vaultPath";
+
+/** 设置页配置的密码库路径;空字符串表示使用应用数据目录的默认路径。 */
+export function getVaultPathSetting(): string {
+  return localStorage.getItem(VAULT_PATH_KEY) ?? "";
+}
+
+export function setVaultPathSetting(path: string): void {
+  localStorage.setItem(VAULT_PATH_KEY, path);
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -45,7 +56,7 @@ export function createVault(
   path: string | null,
   password: string,
   useKeyFile: boolean,
-): Promise<VaultStatus> {
+): Promise<[VaultStatus, string | null]> {
   return invoke("vault_create", { path, password, useKeyFile });
 }
 
@@ -99,4 +110,22 @@ export function disableHello(): Promise<void> {
 
 export function unlockWithHello(): Promise<VaultStatus> {
   return invoke("hello_unlock");
+}
+
+export interface ScannedAccount {
+  username: string;
+  characters: Character[];
+  exists: boolean;
+}
+
+export function scanUserdataAccounts(
+  gamePath: string,
+): Promise<ScannedAccount[]> {
+  return invoke("scan_userdata_accounts", { gamePath });
+}
+
+export function importScannedAccounts(
+  accounts: AccountInput[],
+): Promise<number> {
+  return invoke("import_scanned_accounts", { accounts });
 }

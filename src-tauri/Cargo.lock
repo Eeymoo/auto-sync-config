@@ -104,10 +104,12 @@ name = "auto-sync-config"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "encoding_rs",
  "getrandom 0.2.17",
  "keepass-rs",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

@@ -1,16 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod keepass;
+mod sync_system;
 
 use keepass::{
-    AccountInput, AccountSummary, CredentialsInput, SharedVault, VaultState, VaultStatus,
+    AccountInput, AccountSummary, CredentialsInput, ScannedAccount, SharedVault, VaultState,
+    VaultStatus,
 };
 use std::sync::Mutex;
 use tauri::Manager;
 
+struct SyncExecutionLock(Mutex<()>);
+
 fn main() {
     tauri::Builder::default()
         .manage::<SharedVault>(Mutex::new(VaultState::new()))
+        .manage(SyncExecutionLock(Mutex::new(())))
         .invoke_handler(tauri::generate_handler![
             launch_program,
             vault_create,
@@ -22,15 +27,132 @@ fn main() {
             account_save,
             account_delete,
             account_credentials,
+            scan_userdata_accounts,
+            import_scanned_accounts,
             hello_enable,
             hello_disable,
             hello_unlock,
+            sync_source_directory,
+            sync_materialize_adapter_source,
+            sync_list_adapters,
+            sync_scan_roles,
+            sync_plan,
+            sync_execute,
+            sync_list_transactions,
+            sync_undo,
+            sync_redo,
         ])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/* ---------- 同步系统 ---------- */
+
+fn sync_app_data_directory(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|error| format!("无法确定应用数据目录: {error}"))
+}
+
+#[tauri::command]
+fn sync_source_directory(app: tauri::AppHandle) -> Result<String, String> {
+    let app_data = sync_app_data_directory(&app)?;
+    Ok(sync_system::source_directory(&app_data)?
+        .to_string_lossy()
+        .into_owned())
+}
+
+#[tauri::command]
+fn sync_materialize_adapter_source(
+    app: tauri::AppHandle,
+    adapter_id: String,
+) -> Result<String, String> {
+    let app_data = sync_app_data_directory(&app)?;
+    Ok(
+        sync_system::materialize_adapter_source(&app_data, &adapter_id)?
+            .to_string_lossy()
+            .into_owned(),
+    )
+}
+
+#[tauri::command]
+fn sync_list_adapters(
+    app: tauri::AppHandle,
+) -> Result<Vec<sync_system::model::AdapterSummary>, String> {
+    let app_data = sync_app_data_directory(&app)?;
+    Ok(sync_system::load_registry(&app_data)?.summaries())
+}
+
+#[tauri::command]
+fn sync_scan_roles(
+    app: tauri::AppHandle,
+    adapter_id: String,
+    root: String,
+    variant: String,
+) -> Result<Vec<sync_system::model::SyncRole>, String> {
+    let app_data = sync_app_data_directory(&app)?;
+    let registry = sync_system::load_registry(&app_data)?;
+    let adapter = registry.get(&adapter_id)?;
+    sync_system::scan_roles(adapter, std::path::Path::new(&root), &variant)
+}
+
+#[tauri::command]
+fn sync_plan(
+    app: tauri::AppHandle,
+    request: sync_system::model::SyncRequest,
+) -> Result<sync_system::model::SyncPlan, String> {
+    let app_data = sync_app_data_directory(&app)?;
+    let registry = sync_system::load_registry(&app_data)?;
+    sync_system::plan_sync(&registry, &request)
+}
+
+#[tauri::command]
+fn sync_execute(
+    app: tauri::AppHandle,
+    lock: tauri::State<SyncExecutionLock>,
+    request: sync_system::model::SyncRequest,
+) -> Result<sync_system::model::SyncExecutionResult, String> {
+    let _guard = lock.0.lock().map_err(|_| "同步执行锁已损坏".to_string())?;
+    let app_data = sync_app_data_directory(&app)?;
+    let registry = sync_system::load_registry(&app_data)?;
+    let history = sync_system::history_directory(&app_data)?;
+    sync_system::execute_sync(&registry, &request, &history)
+}
+
+#[tauri::command]
+fn sync_list_transactions(
+    app: tauri::AppHandle,
+) -> Result<Vec<sync_system::model::TransactionSummary>, String> {
+    let app_data = sync_app_data_directory(&app)?;
+    let history = sync_system::history_directory(&app_data)?;
+    sync_system::list_transactions(&history)
+}
+
+#[tauri::command]
+fn sync_undo(
+    app: tauri::AppHandle,
+    lock: tauri::State<SyncExecutionLock>,
+    transaction_id: String,
+) -> Result<sync_system::model::SyncTransitionResult, String> {
+    let _guard = lock.0.lock().map_err(|_| "同步执行锁已损坏".to_string())?;
+    let app_data = sync_app_data_directory(&app)?;
+    let history = sync_system::history_directory(&app_data)?;
+    sync_system::undo_transaction(&history, &transaction_id)
+}
+
+#[tauri::command]
+fn sync_redo(
+    app: tauri::AppHandle,
+    lock: tauri::State<SyncExecutionLock>,
+    transaction_id: String,
+) -> Result<sync_system::model::SyncTransitionResult, String> {
+    let _guard = lock.0.lock().map_err(|_| "同步执行锁已损坏".to_string())?;
+    let app_data = sync_app_data_directory(&app)?;
+    let history = sync_system::history_directory(&app_data)?;
+    sync_system::redo_transaction(&history, &transaction_id)
 }
 
 /* ---------- 密码库命令 ---------- */
@@ -41,7 +163,7 @@ fn vault_create(
     path: Option<String>,
     password: String,
     use_key_file: bool,
-) -> Result<VaultStatus, String> {
+) -> Result<(VaultStatus, Option<String>), String> {
     keepass::create_vault(&state, path, password, use_key_file)
 }
 
@@ -95,6 +217,37 @@ fn account_credentials(
     id: String,
 ) -> Result<(String, String), String> {
     keepass::get_credentials(&state, id)
+}
+
+#[tauri::command]
+fn scan_userdata_accounts(
+    app: tauri::AppHandle,
+    state: tauri::State<SharedVault>,
+    game_path: String,
+) -> Result<Vec<ScannedAccount>, String> {
+    let app_data = sync_app_data_directory(&app)?;
+    let registry = sync_system::load_registry(&app_data)?;
+    let adapter = registry.get("jx3")?;
+    let variant = if std::path::Path::new(&game_path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("zhcn_exp"))
+    {
+        "experimental"
+    } else {
+        "official"
+    };
+    let role_sects =
+        sync_system::scan_role_sects(adapter, std::path::Path::new(&game_path), variant)?;
+    keepass::scan_userdata(game_path, &state, &role_sects)
+}
+
+#[tauri::command]
+fn import_scanned_accounts(
+    state: tauri::State<SharedVault>,
+    accounts: Vec<AccountInput>,
+) -> Result<u32, String> {
+    keepass::import_accounts(&state, accounts)
 }
 
 /* ---------- Windows Hello 便捷解锁 ---------- */

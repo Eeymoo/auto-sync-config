@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Button } from "@/components/ui/button";
-import { FolderOpen, CheckCircle2, XCircle } from "lucide-react";
+import { FolderOpen, CheckCircle2, XCircle, X } from "lucide-react";
 import { isGamePathValid } from "@/lib/game";
 
 interface GamePathFieldProps {
@@ -31,14 +31,29 @@ export function GamePathField({ value, onChange }: GamePathFieldProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={() => value && validate(value)}
-          placeholder="D:\JX3\bin\zhcn_hd"
-          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 font-mono text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={() => value && validate(value)}
+            placeholder="D:\JX3\bin\zhcn_hd"
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 pr-8 font-mono text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          {value && (
+            <button
+              type="button"
+              title="清除"
+              onClick={() => {
+                onChange("");
+                setValid(null);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
         <Button variant="outline" size="sm" onClick={pickFolder}>
           <FolderOpen className="mr-1 h-4 w-4" />
           浏览

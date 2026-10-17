@@ -4,9 +4,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LauncherHome } from "@/components/launcher/LauncherHome";
 import { AccountsPage } from "@/components/accounts/AccountsPage";
+import { SyncPage } from "@/components/sync/SyncPage";
 import { GeneralTab } from "@/components/settings/GeneralTab";
+import { AdvancedTab } from "@/components/settings/AdvancedTab";
 import { AboutTab } from "@/components/settings/AboutTab";
 import { getGamePath, setGamePath } from "@/lib/game";
+import {
+  getShowSyncVariantSettings,
+  setShowSyncVariantSettings,
+} from "@/lib/sync";
+import { getVaultPathSetting, setVaultPathSetting } from "@/lib/vault";
+import {
+  getBackgroundMode,
+  getFixedBackgroundId,
+  setBackgroundMode,
+  setFixedBackgroundId,
+  type BackgroundMode,
+} from "@/lib/background";
 
 const LicensesTab = lazy(() =>
   import("@/components/settings/LicensesTab").then(({ LicensesTab }) => ({ default: LicensesTab }))
@@ -15,7 +29,17 @@ const LicensesTab = lazy(() =>
 function App() {
   const [dark, setDark] = useState(false);
   const [gamePath, setGamePathState] = useState(getGamePath);
-  const [view, setView] = useState<"home" | "settings" | "accounts">("home");
+  const [vaultPath, setVaultPathState] = useState(getVaultPathSetting);
+  const [showSyncVariantSettings, setShowSyncVariantSettingsState] = useState(
+    getShowSyncVariantSettings,
+  );
+  const [backgroundMode, setBackgroundModeState] = useState<BackgroundMode>(
+    getBackgroundMode,
+  );
+  const [fixedBackgroundId, setFixedBackgroundIdState] = useState(
+    getFixedBackgroundId,
+  );
+  const [view, setView] = useState<"home" | "settings" | "accounts" | "sync">("home");
 
   const toggleTheme = (checked: boolean) => {
     setDark(checked);
@@ -25,6 +49,26 @@ function App() {
   const handleGamePathChange = (path: string) => {
     setGamePathState(path);
     setGamePath(path);
+  };
+
+  const handleVaultPathChange = (path: string) => {
+    setVaultPathState(path);
+    setVaultPathSetting(path);
+  };
+
+  const handleShowSyncVariantSettingsChange = (checked: boolean) => {
+    setShowSyncVariantSettingsState(checked);
+    setShowSyncVariantSettings(checked);
+  };
+
+  const handleBackgroundModeChange = (mode: BackgroundMode) => {
+    setBackgroundModeState(mode);
+    setBackgroundMode(mode);
+  };
+
+  const handleFixedBackgroundChange = (id: string) => {
+    setFixedBackgroundIdState(id);
+    setFixedBackgroundId(id);
   };
 
   if (view === "settings") {
@@ -39,8 +83,9 @@ function App() {
 
         <main className="mx-auto min-h-0 w-full max-w-2xl flex-1 p-6">
           <Tabs defaultValue="general" className="flex h-full min-h-0 flex-col">
-            <TabsList className="grid w-full shrink-0 grid-cols-3">
+            <TabsList className="grid w-full shrink-0 grid-cols-4">
               <TabsTrigger value="general">常规</TabsTrigger>
+              <TabsTrigger value="advanced">高级</TabsTrigger>
               <TabsTrigger value="licenses">开源许可证</TabsTrigger>
               <TabsTrigger value="about">关于</TabsTrigger>
             </TabsList>
@@ -53,6 +98,23 @@ function App() {
                     onDarkChange={toggleTheme}
                     gamePath={gamePath}
                     onGamePathChange={handleGamePathChange}
+                    vaultPath={vaultPath}
+                    onVaultPathChange={handleVaultPathChange}
+                    backgroundMode={backgroundMode}
+                    onBackgroundModeChange={handleBackgroundModeChange}
+                    fixedBackgroundId={fixedBackgroundId}
+                    onFixedBackgroundChange={handleFixedBackgroundChange}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="advanced" className="min-h-0 flex-1 overflow-hidden">
+              <Card className="max-h-full overflow-y-auto">
+                <CardContent className="pt-6">
+                  <AdvancedTab
+                    showSyncVariantSettings={showSyncVariantSettings}
+                    onShowSyncVariantSettingsChange={handleShowSyncVariantSettingsChange}
                   />
                 </CardContent>
               </Card>
@@ -82,7 +144,17 @@ function App() {
   }
 
   if (view === "accounts") {
-    return <AccountsPage onBack={() => setView("home")} />;
+    return <AccountsPage gamePath={gamePath} onBack={() => setView("home")} />;
+  }
+
+  if (view === "sync") {
+    return (
+      <SyncPage
+        gamePath={gamePath}
+        showVariantSettings={showSyncVariantSettings}
+        onBack={() => setView("home")}
+      />
+    );
   }
 
   return (
@@ -90,6 +162,7 @@ function App() {
       gamePath={gamePath}
       onOpenSettings={() => setView("settings")}
       onOpenAccounts={() => setView("accounts")}
+      onOpenSync={() => setView("sync")}
     />
   );
 }

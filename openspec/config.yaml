@@ -1,0 +1,50 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+context: |
+  Project: auto-sync-config — a Windows desktop launcher (Tauri 2 + React 18 +
+  TypeScript + Tailwind CSS + shadcn/ui-style primitives) for the game 剑网3
+  (JX3). It manages game paths, multiple game accounts stored in a KeePass
+  vault (keepass-rs), and syncs per-variant game config files.
+  Frontend: `src/`, with four views switched in `src/App.tsx` (launcher home,
+  accounts, sync, settings). Feature components in `src/components/{launcher,
+  accounts,sync,settings}/`, UI primitives in `src/components/ui/`, shared
+  logic in `src/lib/`, types in `src/types/`, images in `src/assets/`.
+  Backend: Rust in `src-tauri/src/` (main.rs, keepass.rs, sync_system/),
+  Tauri plugins: dialog, fs, http. Sync source definitions live in
+  `src-tauri/sync-sources/`.
+  Build: `npm run build` (regenerates `src/generated/licenses.json` via
+  scripts/generate-licenses.mjs, then `tsc` + `vite build`); `npm run tauri
+  dev` / `npm run tauri build` for the desktop app; `cargo check --manifest-
+  path src-tauri/Cargo.toml` for native checks.
+  Style: two-space indentation in TS/TSX/JSON/config, four spaces in Rust;
+  double quotes and semicolons in TypeScript; PascalCase components/files,
+  camelCase functions/variables, snake_case Rust; prefer `@/` import alias;
+  Tailwind classes stay with their components; run `cargo fmt` on Rust changes.
+  No ESLint/Prettier configured; no automated test framework yet.
+  Repository conventions are documented in AGENTS.md; keep this context and
+  AGENTS.md in sync when either changes.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

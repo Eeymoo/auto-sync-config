@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -16,6 +17,7 @@ const DEFAULT_VAULT_FILE: &str = "jx3-accounts.kdbx";
 const AUTO_LOCK_AFTER: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VaultStatus {
     pub unlocked: bool,
     pub path: Option<String>,
@@ -162,7 +164,11 @@ pub struct ScannedAccount {
 
 /// Scans `userdata` under the given game path for account directories and
 /// their role folders, without reading any file contents (dirs only).
-pub fn scan_userdata(game_path: String, state: &SharedVault) -> Result<Vec<ScannedAccount>, String> {
+pub fn scan_userdata(
+    game_path: String,
+    state: &SharedVault,
+    role_sects: &HashMap<(String, String), String>,
+) -> Result<Vec<ScannedAccount>, String> {
     let userdata = PathBuf::from(&game_path).join("userdata");
     if !userdata.is_dir() {
         return Err(format!("userdata 目录不存在: {}", userdata.display()));
@@ -202,12 +208,19 @@ pub fn scan_userdata(game_path: String, state: &SharedVault) -> Result<Vec<Scann
                                 // Role folder names may carry "@隐归" style suffixes; strip them.
                                 let raw = role.file_name().to_string_lossy().to_string();
                                 let name = raw.split('@').next().unwrap_or(&raw).to_string();
+                                let sect = role_sects
+                                    .get(&(raw.clone(), server_name.clone()))
+                                    .or_else(|| {
+                                        role_sects.get(&(name.clone(), server_name.clone()))
+                                    })
+                                    .cloned()
+                                    .unwrap_or_default();
                                 characters.push(Character {
                                     id: String::new(),
                                     name,
                                     server: server_name.clone(),
                                     level: None,
-                                    sect: String::new(),
+                                    sect,
                                     note: String::new(),
                                 });
                             }
@@ -225,17 +238,15 @@ pub fn scan_userdata(game_path: String, state: &SharedVault) -> Result<Vec<Scann
     }
 
     // Mark accounts that already exist in the vault.
-    if let Ok(guard) = state.lock() {
-        if let Some(db) = guard.db.as_ref() {
-            if let Some(group_id) = find_jx3_group(db) {
-                let existing: Vec<String> = db
-                    .get_entries_in_group(&group_id)
-                    .iter()
-                    .map(|e| e.username.as_str().to_string())
-                    .collect();
-                for acc in &mut result {
-                    acc.exists = existing.iter().any(|u| u == &acc.username);
-                }
+    if let Some(db) = state.lock().map_err(|_| "内部状态错误".to_string())?.db.as_ref() {
+        if let Some(group_id) = find_jx3_group(db) {
+            let existing: Vec<String> = db
+                .get_entries_in_group(&group_id)
+                .iter()
+                .map(|e| e.username.as_str().to_string())
+                .collect();
+            for acc in &mut result {
+                acc.exists = existing.iter().any(|u| u == &acc.username);
             }
         }
     }
@@ -252,26 +263,30 @@ pub fn import_accounts(state: &SharedVault, accounts: Vec<AccountInput>) -> Resu
     {
         let db = guard.open_db()?;
         let group_id = ensure_jx3_group(db)?;
-        let existing: Vec<String> = db
+        let mut existing: Vec<String> = db
             .get_entries_in_group(&group_id)
             .iter()
             .map(|e| e.username.as_str().to_string())
             .collect();
 
         for input in accounts {
-            if existing.iter().any(|u| u == &input.username) {
+            let username = input.username.trim();
+            if existing.iter().any(|u| u == username) {
                 continue;
             }
             let entry_id = new_entry_id();
             let mut entry = Entry::new(entry_id);
             entry.title = input.title.trim().to_string();
-            entry.username = ProtectedString::new_plain(input.username.trim());
+            entry.username = ProtectedString::new_plain(username);
             entry.password = ProtectedString::new_protected(&input.password);
             entry.notes = ProtectedString::new_plain(&input.note);
             write_characters(&mut entry, normalize_characters(input.characters))?;
             entry.autotype_enabled = true;
             if db.add_entry(entry, &group_id) {
                 imported += 1;
+                // Keep the in-memory snapshot in sync so duplicates within the
+                // same batch are skipped too.
+                existing.push(username.to_string());
             }
         }
         if imported > 0 {
@@ -495,7 +510,7 @@ pub fn create_vault(
     path: Option<String>,
     password: String,
     use_key_file: bool,
-) -> Result<VaultStatus, String> {
+) -> Result<(VaultStatus, Option<String>), String> {
     if password.is_empty() {
         return Err("主密码不能为空".to_string());
     }
@@ -511,9 +526,15 @@ pub fn create_vault(
     }
 
     let mut key = CompositeKey::new().with_password(password.as_bytes());
-    if use_key_file {
-        key = key.with_key_file(&new_key_bytes()?);
-    }
+    // The generated key file must be handed back to the caller; without it the
+    // vault can never be reopened once this session ends.
+    let key_file_base64 = if use_key_file {
+        let bytes = new_key_bytes()?;
+        key = key.with_key_file(&bytes);
+        Some(base64::engine::general_purpose::STANDARD.encode(bytes))
+    } else {
+        None
+    };
 
     let mut db = Database::new(DatabaseVersion::KDBX4);
     db.kdf_parameters = Some(Argon2KdfEngine::argon2id().default_parameters());
@@ -540,7 +561,7 @@ pub fn create_vault(
     guard.touch();
     guard.fingerprint = Some(fp);
     guard.backup_done = true; // brand new file, no pre-existing content to preserve
-    Ok(status_of(&guard))
+    Ok((status_of(&guard), key_file_base64))
 }
 
 pub fn open_vault(
@@ -1024,7 +1045,8 @@ mod tests {
             "pw123".to_string(),
             false,
         )
-        .unwrap();
+        .unwrap()
+        .0;
 
         save_account(
             &state,
@@ -1073,7 +1095,8 @@ mod tests {
             "right".to_string(),
             false,
         )
-        .unwrap();
+        .unwrap()
+        .0;
         lock_vault(&state).unwrap();
         let result = open_vault(
             &state,
